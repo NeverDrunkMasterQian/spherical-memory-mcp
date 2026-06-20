@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "Qian Maoyuan", email = "qianmaoyuan@example.com"},
+    {name = "Qian Maoyuan", email = "462353540@qq.com"},
 ]
 keywords = ["mcp", "memory", "agent", "llm", "ai", "spherical-memory", "gravity-link"]
 classifiers = [
@@ -23,6 +23,11 @@ classifiers = [
 dependencies = [
     "mcp[cli]>=1.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/NeverDrunkMasterQian/spherical-memory-mcp"
+Repository = "https://github.com/NeverDrunkMasterQian/spherical-memory-mcp"
+Issues = "https://github.com/NeverDrunkMasterQian/spherical-memory-mcp/issues"
 
 [project.optional-dependencies]
 embedding = [

@@ -1,5 +1,7 @@
 # 球状网络标签记忆体系 — MCP Server
 
+<!-- mcp-name: io.github.NeverDrunkMasterQian/spherical-memory-mcp -->
+
 一个基于三维球坐标与引力链接的 AI Agent 记忆插件，实现了"球状网络标签记忆体系"论文的核心构想。
 
 任何支持 MCP（Model Context Protocol）的 LLM Agent，接入此插件后即可获得：
