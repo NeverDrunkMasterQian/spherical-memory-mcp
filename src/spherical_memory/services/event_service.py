@@ -6,7 +6,7 @@ from spherical_memory.db.schema import get_meta, set_meta
 from spherical_memory.models.event import Event
 
 
-def register_event(name: str, parent_id: str | None = None, description: str = "") -> Event:
+def register_event(name: str, parent_id: str | None = None, description: str = "") -> dict:
     """注册新事件，自动分配极角 theta"""
     # 确定深度与父事件
     depth = 0

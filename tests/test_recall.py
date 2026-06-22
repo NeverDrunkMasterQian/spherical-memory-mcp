@@ -57,8 +57,9 @@ def test_multiple_stores_and_recall(temp_db):
         query_tags=["辞去", "职业", "决定"],  # 标签匹配第一条记忆的 tags
         gravity_threshold=0.3,
     )
-    # 冷启动时降级为坐标查询
-    assert result["total_count"] >= 1
+    # 冷启动时降级为坐标查询，检查返回的 activated_memories
+    assert len(result["activated_memories"]) >= 1
+    assert result.get("_cold_start") is True
 
 
 def test_coordinate_recall(temp_db):

@@ -48,32 +48,23 @@ def auto_advance() -> dict | None:
 
 def conversation_heartbeat() -> dict:
     """
-    对话心跳 — 显式调用（兼容旧版用法）。
-    自动追踪轮次计数，按 heartbeat_interval 触发记忆固化信号。
+    对话心跳 — 只读查询当前状态（兼容旧版用法）。
+    不自增计数器，计数已寄生在核心工具（store/recall 等）的 auto_advance() 中。
+    重复调用此工具不会导致双重计数。
     """
     counter = _ensure_counter()
-    counter += 1
-    set_meta("heartbeat_counter", str(counter))
-
-    since = get_meta("heartbeat_since_consolidation") or "0"
-    since = int(since) + 1
-    set_meta("heartbeat_since_consolidation", str(since))
-
+    since = int(get_meta("heartbeat_since_consolidation") or "0")
     interval = CONFIG.heartbeat_interval
     consolidate = counter % interval == 0
-
     last_consolidation = get_meta("heartbeat_last_consolidation") or "never"
 
-    if consolidate:
-        set_meta("heartbeat_since_consolidation", "0")
-        set_meta("heartbeat_last_consolidation", datetime.now(timezone.utc).isoformat())
-        since = 0
+    next_at = counter + (interval - (counter % interval)) if counter % interval != 0 else counter + interval
 
     return {
         "turn_count": counter,
         "turns_since_consolidation": since,
         "consolidate": consolidate,
-        "next_consolidation_at": counter + (interval - (counter % interval)),
+        "next_consolidation_at": next_at,
         "last_consolidation": last_consolidation,
         "heartbeat_interval": interval,
     }

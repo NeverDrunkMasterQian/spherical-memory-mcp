@@ -18,6 +18,20 @@ from spherical_memory.services.memory_service import (
 )
 
 
+def _wrap_cold_start(raw_result: dict) -> dict:
+    """将坐标查询结果包装成引力检索的返回结构"""
+    return {
+        "entry_point": None,
+        "activated_memories": raw_result.get("memories", []),
+        "activation_stats": {
+            "total_candidates": raw_result.get("total_count", 0),
+            "activated_count": len(raw_result.get("memories", [])),
+            "avg_gravity": 0.0,
+        },
+        "_cold_start": True,
+    }
+
+
 def _find_entry_points(
     query_tags: list[str],
     memory_type_filter: list[str] | None = None,
@@ -174,13 +188,13 @@ def recall_by_gravity(
         if time_range:
             from_ts = time_range.get("from")
             to_ts = time_range.get("to")
-        return recall_by_coordinate(
+        return _wrap_cold_start(recall_by_coordinate(
             memory_type=memory_type_filter[0] if memory_type_filter else None,
             keyword=query_tags[0] if query_tags else query,
             time_from=from_ts,
             time_to=to_ts,
             limit=max_activations,
-        )
+        ))
 
     # ---------- 1. 定位入口节点 ----------
     from_ts = None
@@ -195,10 +209,10 @@ def recall_by_gravity(
 
     # 无入口时回退到坐标查询
     if not entries:
-        return recall_by_coordinate(
+        return _wrap_cold_start(recall_by_coordinate(
             keyword=query_tags[0] if query_tags else query,
             limit=max_activations,
-        )
+        ))
 
     # 选 node_mass 最高的作为入口
     entry = max(entries, key=lambda m: m.node_mass)
@@ -210,7 +224,13 @@ def recall_by_gravity(
     queue: list[tuple[str, float, list[str]]] = [
         (entry.id, 1.0, [entry.id])
     ]
-    activated: dict[str, dict] = {}  # memory_id -> {gravity, path}
+    activated: dict[str, dict] = {
+        entry.id: {
+            "gravity": 1.0,
+            "path": [entry.id],
+            "link_types": [],
+        }
+    }
 
     while queue and len(activated) < max_activations:
         current_id, incoming_gravity, path = queue.pop(0)

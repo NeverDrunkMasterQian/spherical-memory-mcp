@@ -122,28 +122,6 @@ CREATE INDEX IF NOT EXISTS idx_me_event ON memory_events(event_id);
 CREATE INDEX IF NOT EXISTS idx_me_primary ON memory_events(memory_id, is_primary);
 """
 
-FTS_SQL = """
-CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
-    summary, content, content=memories, content_rowid=rowid
-);
-"""
-
-# 触发器：保持 FTS 索引与 memories 表同步
-FTS_TRIGGERS = """
-CREATE TRIGGER IF NOT EXISTS memories_ai AFTER INSERT ON memories BEGIN
-    INSERT INTO memories_fts(rowid, summary, content) VALUES (new.rowid, new.summary, new.content);
-END;
-
-CREATE TRIGGER IF NOT EXISTS memories_ad AFTER DELETE ON memories BEGIN
-    INSERT INTO memories_fts(memories_fts, rowid, summary, content) VALUES('delete', old.rowid, old.summary, old.content);
-END;
-
-CREATE TRIGGER IF NOT EXISTS memories_au AFTER UPDATE ON memories BEGIN
-    INSERT INTO memories_fts(memories_fts, rowid, summary, content) VALUES('delete', old.rowid, old.summary, old.content);
-    INSERT INTO memories_fts(rowid, summary, content) VALUES (new.rowid, new.summary, new.content);
-END;
-"""
-
 
 def init_db() -> None:
     """初始化数据库（幂等，可多次调用）"""
@@ -151,15 +129,6 @@ def init_db() -> None:
     db.executescript(SCHEMA_SQL)
     # 兼容旧数据库：添加 source_uri 列
     _migrate_add_column(db, "memories", "source_uri", "TEXT")
-    # FTS 使用独立 execute 避免事务冲突
-    try:
-        db.execute(FTS_SQL)
-    except Exception:
-        pass  # 已存在
-    try:
-        db.execute(FTS_TRIGGERS)
-    except Exception:
-        pass
 
 
 def _migrate_add_column(db, table: str, column: str, col_type: str) -> None:

@@ -85,6 +85,7 @@ class MemoryConfig:
             "SM_LINK_THRESHOLD": ("link_threshold", float),
             "SM_ACTIVATION_THRESHOLD": ("activation_threshold", float),
             "SM_DECAY_RATE": ("decay_rate", float),
+            "SM_HEARTBEAT_INTERVAL": ("heartbeat_interval", int),
             "SM_ENABLE_EMBEDDING": ("enable_embedding", lambda x: x.lower() == "true"),
             "SM_EMBEDDING_MODEL": "embedding_model",
         }

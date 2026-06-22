@@ -126,11 +126,13 @@ pip install -e .
 
 预留了**可插拔引擎接口**（`services/similarity.py`），后续接入 `bge-small-zh` embedding 后，语义相似度将从"精确匹配"升级为"向量余弦"，引力链接质量将质的飞跃。
 
-切换方式：
-```python
-from spherical_memory.services.similarity import set_similarity_engine, EmbeddingSimilarityEngine
-set_similarity_engine(EmbeddingSimilarityEngine(model="BAAI/bge-small-zh-v1.5"))
-```
+> ⚠️ **EmbeddingSimilarityEngine 当前尚未实现**（规划中，欢迎贡献）。目前唯一切换方式是替换为其他 `SimilarityEngine` 的实现类。
+>
+> ```python
+> # 未来切换方式（规划中）：
+> # from spherical_memory.services.similarity import set_similarity_engine, EmbeddingSimilarityEngine
+> # set_similarity_engine(EmbeddingSimilarityEngine(model="BAAI/bge-small-zh-v1.5"))
+> ```
 
 ---
 

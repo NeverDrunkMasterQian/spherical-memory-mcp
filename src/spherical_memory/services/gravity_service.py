@@ -48,6 +48,27 @@ TYPE_PHASE = {
 _subtype_registry: dict[str, dict[str, int]] = {}
 
 
+def _load_subtype_registry() -> dict[str, dict[str, int]]:
+    """从 system_meta 恢复子类型注册表，保证重启后 phi 一致"""
+    try:
+        raw = get_meta("subtype_registry")
+        if raw:
+            # JSON keys must be str, restore from parsed dict
+            parsed = json.loads(raw)
+            return {k: {sk: int(sv) for sk, sv in v.items()} for k, v in parsed.items()}
+    except Exception:
+        pass
+    return {}
+
+
+def _save_subtype_registry() -> None:
+    """将子类型注册表持久化到 system_meta"""
+    try:
+        set_meta("subtype_registry", json.dumps(_subtype_registry, ensure_ascii=False))
+    except Exception:
+        pass
+
+
 def _compute_phi(memory_type: str, sub_type: str | None = None) -> float:
     """计算方位角 phi"""
     base = TYPE_PHASE.get(memory_type, 0.0)
@@ -60,6 +81,7 @@ def _compute_phi(memory_type: str, sub_type: str | None = None) -> float:
     registry = _subtype_registry[memory_type]
     if sub_type not in registry:
         registry[sub_type] = len(registry) + 1
+        _save_subtype_registry()  # 持久化新增子类型
 
     n = len(registry)
     k = registry[sub_type]
@@ -241,12 +263,13 @@ def auto_link_new_memory(memory: MemoryNode) -> list[dict]:
     if total["cnt"] <= 1:
         return []
 
-    # 1. 确定候选集
+    # 1. 确定候选集（用有序列表+去重保证确定性）
     link_threshold = CONFIG.link_threshold
     if total["cnt"] < CONFIG.cold_start_threshold:
         link_threshold = CONFIG.cold_start_link_threshold
 
-    candidates = set()
+    candidates = []
+    seen = {memory.id}
 
     # 同类型记忆 top 20
     for row in conn_module.db.fetchall(
@@ -254,7 +277,10 @@ def auto_link_new_memory(memory: MemoryNode) -> list[dict]:
         "ORDER BY node_mass DESC LIMIT 20",
         (memory.memory_type, memory.id),
     ):
-        candidates.add(row["id"])
+        cid = row["id"]
+        if cid not in seen:
+            candidates.append(cid)
+            seen.add(cid)
 
     # 同事件记忆 top 10
     for row in conn_module.db.fetchall(
@@ -267,7 +293,10 @@ def auto_link_new_memory(memory: MemoryNode) -> list[dict]:
            ORDER BY m.node_mass DESC LIMIT 10""",
         (memory.id, memory.id),
     ):
-        candidates.add(row["id"])
+        cid = row["id"]
+        if cid not in seen:
+            candidates.append(cid)
+            seen.add(cid)
 
     # 大质量枢纽节点 top 10
     for row in conn_module.db.fetchall(
@@ -275,10 +304,13 @@ def auto_link_new_memory(memory: MemoryNode) -> list[dict]:
         "ORDER BY node_mass DESC LIMIT 10",
         (memory.id,),
     ):
-        candidates.add(row["id"])
+        cid = row["id"]
+        if cid not in seen:
+            candidates.append(cid)
+            seen.add(cid)
 
     # 去重，取前 CONFIG.max_candidates
-    candidate_list = list(candidates)[: CONFIG.max_candidates]
+    candidate_list = candidates[: CONFIG.max_candidates]
 
     # 2. 对每个候选计算引力
     links_created = []
@@ -313,6 +345,7 @@ def auto_link_new_memory(memory: MemoryNode) -> list[dict]:
 def _upsert_link(link: GravityLink) -> None:
     """插入或更新引力链接（无向边）"""
     import json
+    import sqlite3
     try:
         conn_module.db.execute(
             """INSERT INTO gravity_links
@@ -327,8 +360,8 @@ def _upsert_link(link: GravityLink) -> None:
                 json.dumps(link.link_sources, ensure_ascii=False),
             ),
         )
-    except Exception:
-        # 链接已存在，更新引力强度
+    except sqlite3.IntegrityError:
+        # 链接已存在（UNIQUE 约束冲突），更新引力强度
         conn_module.db.execute(
             """UPDATE gravity_links SET
                gravity_strength = ?, semantic_similarity = ?,
@@ -363,3 +396,7 @@ def get_link_between(a_id: str, b_id: str) -> GravityLink | None:
         (s, t),
     )
     return GravityLink.from_row(row) if row else None
+
+
+# 模块加载时从持久化恢复子类型注册表
+_subtype_registry = _load_subtype_registry()

@@ -9,3 +9,4 @@ build/
 *.db-wal
 *.db-shm
 .spherical-memory/
+push.bat

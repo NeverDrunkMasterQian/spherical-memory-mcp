@@ -51,7 +51,7 @@ mcp = FastMCP(
     instructions="球状网络标签记忆体系 — 为 Agent 提供空间化记忆能力。记忆不再是无差别的数据，而是存在于三维球坐标空间中的节点，通过关联引力自组织为闭合球状网络。",
 )
 
-# ==================== 七项 MCP 工具 ====================
+# ==================== 八项 MCP 工具 ====================
 
 
 @mcp.tool()
@@ -210,20 +210,22 @@ def tool_link_memories(
     mem_b = get_memory(target_id)
     if not mem_a or not mem_b:
         return _inject_heartbeat({"error": "一条或两条记忆不存在", "source_id": source_id, "target_id": target_id})
+    if source_id == target_id:
+        return _inject_heartbeat({"error": "不能将记忆链接到自身", "memory_id": source_id})
 
     if strength_override is not None:
         factor = strength_override
         sem = 1.0 if link_type == "semantic" else 0.0
         emo = 1.0 if link_type == "emotion" else 0.0
         cau = 1.0 if link_type == "causal" else 0.0
+        distance = compute_gravity_detailed(mem_a, mem_b)["distance"]
     else:
         detail = compute_gravity_detailed(mem_a, mem_b)
         factor = detail["association_factor"]
         sem = detail["semantic_similarity"]
         emo = detail["emotion_resonance"]
         cau = detail["causal_relation"]
-
-    distance = compute_gravity_detailed(mem_a, mem_b)["distance"]
+        distance = detail["distance"]
     gravity = (mem_a.node_mass * mem_b.node_mass) / (distance ** 2 + 0.01) * factor
     gravity = min(gravity, 1.0)
 
@@ -274,7 +276,7 @@ def tool_decay_memories(
         decay_rate: 每轮衰减系数（可选，默认0.95）。0.95表示每条衰减记忆的质量乘以0.95
         batch_size: 每轮处理的记忆数上限（可选，默认100）
     """
-    return decay_memories(decay_rate=decay_rate, batch_size=batch_size)
+    return _inject_heartbeat(decay_memories(decay_rate=decay_rate, batch_size=batch_size))
 
 
 @mcp.tool()

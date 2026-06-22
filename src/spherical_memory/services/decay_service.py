@@ -29,14 +29,17 @@ def decay_memories(decay_rate: float = 0.95, batch_size: int = 100) -> dict:
     )
 
     decayed = 0
+    updates = []
     for row in rows:
-        new_mass = row["node_mass"] * decay_rate
-        new_mass = max(new_mass, 0.01)  # 保底不降到 0
-        conn_module.db.execute(
-            "UPDATE memories SET node_mass = ?, updated_at = datetime('now') WHERE id = ?",
-            (new_mass, row["id"]),
-        )
+        new_mass = max(row["node_mass"] * decay_rate, 0.01)
+        updates.append((new_mass, row["id"]))
         decayed += 1
+
+    if updates:
+        conn_module.db.executemany(
+            "UPDATE memories SET node_mass = ?, updated_at = datetime('now') WHERE id = ?",
+            updates,
+        )
 
     # 统计沉降层
     sunken_row = conn_module.db.fetchone(
