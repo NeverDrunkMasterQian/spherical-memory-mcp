@@ -94,7 +94,7 @@ def tool_store_memory(
         summary=summary,
         sub_type=sub_type,
         source_uri=source_uri,
-    )
+    ))
 
 
 @mcp.tool()
@@ -128,7 +128,7 @@ def tool_recall_by_gravity(
         memory_type_filter=memory_type_filter,
         time_range=time_range,
         depth=depth,
-    )
+    ))
 
 
 @mcp.tool()
@@ -162,7 +162,7 @@ def tool_recall_by_coordinate(
         keyword=keyword,
         limit=limit,
         sort_by=sort_by,
-    )
+    ))
 
 
 @mcp.tool()
@@ -185,7 +185,7 @@ def tool_register_event(
         name=event_name,
         parent_id=parent_event_id,
         description=description or "",
-    )
+    ))
 
 
 @mcp.tool()
