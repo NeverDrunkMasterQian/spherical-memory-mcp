@@ -30,9 +30,19 @@ from spherical_memory.services.recall_service import (
     recall_by_coordinate,
 )
 from spherical_memory.services.decay_service import decay_memories
-from spherical_memory.services.heartbeat_service import conversation_heartbeat
+from spherical_memory.services.heartbeat_service import conversation_heartbeat, auto_advance
 from spherical_memory.models.memory import MemoryNode
 from spherical_memory.models.gravity_link import GravityLink
+
+# ==================== 寄生心跳辅助 ====================
+
+
+def _inject_heartbeat(result: dict) -> dict:
+    """在工具返回值中注入固化信号（如果本轮需要固化）"""
+    signal = auto_advance()
+    if signal:
+        result["_consolidation_signal"] = signal
+    return result
 
 # ==================== MCP Server 初始化 ====================
 
@@ -71,7 +81,7 @@ def tool_store_memory(
         summary: 记忆摘要（可选）。不提供则自动截取前100字
         sub_type: 二级子类型（可选）。如 coding.bugfix, creation.writing 等
     """
-    return store_memory(
+    return _inject_heartbeat(store_memory(
         content=content,
         memory_type=memory_type,
         event_ids=event_ids,
@@ -107,7 +117,7 @@ def tool_recall_by_gravity(
         time_range: 时间范围（可选）。格式：{"from": "2025-06-01", "to": "2025-12-31"}
         depth: 引力扩散深度（可选，默认2，上限3）。深度越大召回越多但噪声也越多
     """
-    return recall_by_gravity(
+    return _inject_heartbeat(recall_by_gravity(
         query=query,
         query_tags=query_tags,
         max_activations=max_activations,
@@ -141,7 +151,7 @@ def tool_recall_by_coordinate(
     """
     from_ts = time_range.get("from") if time_range else None
     to_ts = time_range.get("to") if time_range else None
-    return recall_by_coordinate(
+    return _inject_heartbeat(recall_by_coordinate(
         memory_type=memory_type,
         event_id=event_id,
         time_from=from_ts,
@@ -168,7 +178,7 @@ def tool_register_event(
         parent_event_id: 父事件ID（可选）。用于创建子事件
         description: 事件描述（可选）
     """
-    return register_event(
+    return _inject_heartbeat(register_event(
         name=event_name,
         parent_id=parent_event_id,
         description=description or "",
@@ -196,7 +206,7 @@ def tool_link_memories(
     mem_a = get_memory(source_id)
     mem_b = get_memory(target_id)
     if not mem_a or not mem_b:
-        return {"error": "一条或两条记忆不存在", "source_id": source_id, "target_id": target_id}
+        return _inject_heartbeat({"error": "一条或两条记忆不存在", "source_id": source_id, "target_id": target_id})
 
     if strength_override is not None:
         factor = strength_override
@@ -226,12 +236,12 @@ def tool_link_memories(
     )
     _upsert_link(link)
 
-    return {
+    return _inject_heartbeat({
         "link_id": link.id,
         "gravity_strength": round(gravity, 4),
         "source_summary": mem_a.summary or mem_a.content[:80],
         "target_summary": mem_b.summary or mem_b.content[:80],
-    }
+    })
 
 
 @mcp.tool()
@@ -244,7 +254,7 @@ def tool_get_memory_stats(detail_level: str = "summary") -> dict:
     参数:
         detail_level: 详细程度（可选，默认summary）。可选：summary（概要）、detailed（详细）
     """
-    return get_memory_stats(detail_level)
+    return _inject_heartbeat(get_memory_stats(detail_level))
 
 
 @mcp.tool()
@@ -306,11 +316,12 @@ def resource_usage_guide() -> str:
 - 用户提到任何话题时，先 recall_by_gravity 联想相关记忆
 - 🫀 每轮对话结束时必须调用 tool_conversation_heartbeat，当 consolidate=true 时执行批量 store_memory
 
-## 对话心跳（🫀 重要！）
-- 每轮对话结束时调用 tool_conversation_heartbeat
-- 该工具自动追踪轮次，每隔 N 轮返回 consolidate=true
-- consolidate=true 时：回顾本轮对话的关键信息，批量调用 store_memory 写入
-- 默认每 3 轮固化一次，可通过环境变量 SM_HEARTBEAT_INTERVAL 调整
+## 对话心跳（🫀 寄生式，无需手动调用）
+- 心跳计数器已寄生在 store_memory / recall_by_gravity / recall_by_coordinate / get_memory_stats 等核心工具中
+- 每次调用这些工具时，计数器自动 +1，不需要你显式调 tool_conversation_heartbeat
+- 当返回值中出现 `_consolidation_signal` 字段时（意味着到了固化轮次），你应该回顾本轮对话的关键信息，批量调用 store_memory 写入
+- 默认每 3 轮触发一次固化，可通过环境变量 SM_HEARTBEAT_INTERVAL 调整
+- tool_conversation_heartbeat 仍然可用（显式检查当前状态，但不会重复计数）
 
 ## 该存什么
 - ✅ 用户分享的重要事实、决定、偏好

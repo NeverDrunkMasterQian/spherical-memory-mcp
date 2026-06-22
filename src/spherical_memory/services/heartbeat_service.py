@@ -17,18 +17,39 @@ def _ensure_counter() -> int:
     return int(val)
 
 
+def auto_advance() -> dict | None:
+    """
+    寄生式心跳 — 在任何工具调用时自动推进计数器。
+    不需要 Agent 显式调用 heartbeat，只要用了 recall 或 store 就自动走。
+
+    返回: 如果本轮应该 consolidate，返回信号 dict；否则返回 None
+    """
+    counter = _ensure_counter()
+    counter += 1
+    set_meta("heartbeat_counter", str(counter))
+
+    since = get_meta("heartbeat_since_consolidation") or "0"
+    since = int(since) + 1
+    set_meta("heartbeat_since_consolidation", str(since))
+
+    interval = CONFIG.heartbeat_interval
+    last_consolidation = get_meta("heartbeat_last_consolidation") or "never"
+
+    if counter % interval == 0:
+        set_meta("heartbeat_since_consolidation", "0")
+        set_meta("heartbeat_last_consolidation", datetime.now(timezone.utc).isoformat())
+        return {
+            "consolidate": True,
+            "turn_count": counter,
+            "message": "本轮对话应执行记忆固化，批量调用 store_memory 存入本次对话的关键信息",
+        }
+    return None
+
+
 def conversation_heartbeat() -> dict:
     """
-    对话心跳 — 每轮对话结束时由 Agent 调用。
+    对话心跳 — 显式调用（兼容旧版用法）。
     自动追踪轮次计数，按 heartbeat_interval 触发记忆固化信号。
-
-    返回:
-        {
-            "turn_count": 当前总轮次,
-            "turns_since_consolidation": 自上次固化以来的轮次数,
-            "consolidate": true/false 是否应该执行记忆固化,
-            "last_consolidation": 上次固化的时间
-        }
     """
     counter = _ensure_counter()
     counter += 1
