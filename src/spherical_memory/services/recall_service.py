@@ -143,6 +143,7 @@ def recall_by_coordinate(
             "node_mass": round(mem.node_mass, 4),
             "created_at": mem.created_at,
             "event_names": event_names,
+            "source_uri": mem.source_uri,
         })
 
     return {
@@ -262,6 +263,7 @@ def recall_by_gravity(
             "gravity_strength": round(info["gravity"], 4),
             "activation_path": info["path"],
             "link_types": info["link_types"],
+            "source_uri": mem.source_uri,
         })
 
     return {

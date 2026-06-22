@@ -33,6 +33,9 @@ CREATE TABLE IF NOT EXISTS memories (
     -- 向量嵌入（BLOB，可选）
     embedding       BLOB,
 
+    -- 文件溯源：记录记忆对应的源文件路径
+    source_uri      TEXT,
+
     -- 时间戳
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     last_activated  TEXT,
@@ -146,6 +149,8 @@ def init_db() -> None:
     """初始化数据库（幂等，可多次调用）"""
     db = conn_module.db
     db.executescript(SCHEMA_SQL)
+    # 兼容旧数据库：添加 source_uri 列
+    _migrate_add_column(db, "memories", "source_uri", "TEXT")
     # FTS 使用独立 execute 避免事务冲突
     try:
         db.execute(FTS_SQL)
@@ -155,6 +160,14 @@ def init_db() -> None:
         db.execute(FTS_TRIGGERS)
     except Exception:
         pass
+
+
+def _migrate_add_column(db, table: str, column: str, col_type: str) -> None:
+    """兼容迁移：若列不存在则添加（SQLite 不支持 IF NOT EXISTS for columns）"""
+    try:
+        db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+    except Exception:
+        pass  # 列已存在
 
 
 def get_meta(key: str) -> str | None:

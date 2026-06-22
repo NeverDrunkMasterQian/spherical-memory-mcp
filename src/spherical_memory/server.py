@@ -65,6 +65,7 @@ def tool_store_memory(
     semantic_tags: list[str] | None = None,
     summary: str | None = None,
     sub_type: str | None = None,
+    source_uri: str | None = None,
 ) -> dict:
     """存储一条新记忆到球状记忆空间。
 
@@ -80,6 +81,7 @@ def tool_store_memory(
         semantic_tags: 语义标签列表（强烈建议提供，3-8个精准关键词）。❌ 不提供会导致引力检索效果极差！标签是引力链接的生命线。推荐：["项目名", "核心概念", "关键实体"]
         summary: 记忆摘要（可选）。不提供则自动截取前100字
         sub_type: 二级子类型（可选）。如 coding.bugfix, creation.writing 等
+        source_uri: 源文件路径（可选）。当记忆来自某个文件时记录其位置，检索时可溯源。如 C:\\Users\\...\\论文.docx 或 https://...
     """
     return _inject_heartbeat(store_memory(
         content=content,
@@ -91,6 +93,7 @@ def tool_store_memory(
         semantic_tags=semantic_tags,
         summary=summary,
         sub_type=sub_type,
+        source_uri=source_uri,
     )
 
 

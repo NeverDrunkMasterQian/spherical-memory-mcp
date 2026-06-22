@@ -43,6 +43,7 @@ def store_memory(
     semantic_tags: list[str] | None = None,
     summary: str | None = None,
     sub_type: str | None = None,
+    source_uri: str | None = None,
 ) -> dict:
     """存储一条新记忆到球状记忆空间"""
 
@@ -80,19 +81,20 @@ def store_memory(
         semantic_tags=tags,
         sub_type=sub_type,
         summary=summary or "",
+        source_uri=source_uri,
     )
 
     conn_module.db.execute(
         """INSERT INTO memories
            (id, content, summary, phi, theta, memory_type, sub_type,
             node_mass, personality_match, activation_count, event_core_degree,
-            emotion_intensity, emotion_type, semantic_tags, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0.3, ?, ?, ?, ?)""",
+            emotion_intensity, emotion_type, semantic_tags, source_uri, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0.3, ?, ?, ?, ?, ?)""",
         (
             mem.id, mem.content, mem.summary, mem.phi, mem.theta,
             mem.memory_type, mem.sub_type, mem.node_mass,
             mem.personality_match, mem.emotion_intensity,
-            mem.emotion_type, tags_json, mem.created_at,
+            mem.emotion_type, tags_json, mem.source_uri, mem.created_at,
         ),
     )
 

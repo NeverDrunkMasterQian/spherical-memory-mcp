@@ -32,6 +32,9 @@ class MemoryNode:
     # 摘要
     summary: str = ""
 
+    # 文件溯源
+    source_uri: str | None = None
+
     # 时间戳
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     last_activated: str | None = None
@@ -63,10 +66,11 @@ class MemoryNode:
             created_at=row["created_at"],
             last_activated=row["last_activated"],
             updated_at=row["updated_at"],
+            source_uri=row["source_uri"] if "source_uri" in row.keys() else None,
         )
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "memory_id": self.id,
             "summary": self.summary or self.content[:100],
             "content": self.content,
@@ -77,6 +81,9 @@ class MemoryNode:
             "semantic_tags": self.semantic_tags,
             "created_at": self.created_at,
         }
+        if self.source_uri:
+            d["source_uri"] = self.source_uri
+        return d
 
     def tags_json(self) -> str:
         return json.dumps(self.semantic_tags, ensure_ascii=False)
